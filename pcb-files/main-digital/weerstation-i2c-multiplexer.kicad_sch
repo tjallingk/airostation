@@ -2095,6 +2095,16 @@
 	)
 	(wire
 		(pts
+			(xy 81.28 52.07) (xy 88.9 52.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7ea43b37-551d-4b8f-a454-a6b8b5c26765")
+	)
+	(wire
+		(pts
 			(xy 163.83 74.93) (xy 124.46 74.93)
 		)
 		(stroke
@@ -2247,7 +2257,7 @@
 	)
 	(global_label "reset-multiplex1"
 		(shape input)
-		(at 88.9 52.07 180)
+		(at 81.28 52.07 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -2257,7 +2267,7 @@
 		)
 		(uuid "4b9d1e26-8f27-428f-8f18-7f015d5f3f64")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 69.6468 52.07 0)
+			(at 62.0268 52.07 0)
 			(effects
 				(font
 					(size 1.27 1.27)
