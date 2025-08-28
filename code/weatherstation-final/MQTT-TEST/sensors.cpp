@@ -1,5 +1,6 @@
 #include "esp32-hal-gpio.h"
 #include "esp32-hal.h"
+#include "AM2315C.h"
 #include <Wire.h>
 #include "mqtt-topics.h"
 #include "networking.h"
@@ -14,6 +15,7 @@
 Adafruit_BME280 bme;
 Adafruit_VEML7700 veml;
 Adafruit_AHTX0 aht;
+AM2315C am2315c; // Add this line for the direct I2C AM2315C
 SparkFun_ENS160 ens;
 // AS5600 as5600[4];
 
@@ -21,7 +23,8 @@ SparkFun_ENS160 ens;
 bool bmeConnected = false;
 bool vemlConnected = false;
 bool ensConnected = false;
-bool ahtConnected = false;
+bool aht21Connected = false;
+bool am2315cConnected = false;
 bool as5600Connected[4] = {false};
 
 #define HALL_SENSOR_PIN 23
@@ -49,6 +52,23 @@ void initializeSensors(PubSubClient &mqttClient)
 
     vemlConnected = veml.begin(&Wire);
     Serial.println(vemlConnected ? "VEML7700 detected." : "VEML7700 not detected.");
+    if (vemlConnected)
+    {
+        publishHADiscovery(mqttClient, "veml_lux", "VEML7700 Lux", MqttTopics::VemlLux, "lx", "illuminance", nullptr);
+        publishHADiscovery(mqttClient, "veml_als", "VEML7700 ALS", MqttTopics::VemlAls, "raw", nullptr, nullptr);
+        publishHADiscovery(mqttClient, "veml_white", "VEML7700 White", MqttTopics::VemlWhite, "raw", nullptr, nullptr);
+    }
+
+    // AM2315C (DHT20 compatible) on main I2C bus
+    am2315c.begin();
+    delay(2000); // Give sensor time to settle
+    am2315cConnected = (am2315c.requestData() == AM2315C_OK);
+    Serial.println(am2315cConnected ? "AM2315C (DHT20) detected." : "AM2315C (DHT20) not detected.");
+    if (am2315cConnected)
+    {
+        publishHADiscovery(mqttClient, "am2315c_temp", "AM2315C Temperature", MqttTopics::am2315cTemp, "°C", "temperature", nullptr);
+        publishHADiscovery(mqttClient, "am2315c_humidity", "AM2315C Humidity", MqttTopics::am2315cHumidity, "%", "humidity", nullptr);
+    }
 
     for (int port = 0; port < 4; port++)
     {
@@ -57,14 +77,28 @@ void initializeSensors(PubSubClient &mqttClient)
         Serial.printf("AS5600 %s on port %d.\n", as5600Connected[port] ? "detected" : "not detected", port);
     }
 
+    
+
     selectMultiplexerPort(4);
-    ahtConnected = aht.begin();
-    Serial.println(ahtConnected ? "AHT21 detected." : "AHT21 not detected.");
+    aht21Connected = aht.begin();
+    Serial.println(aht21Connected ? "AHT21 detected." : "AHT21 not detected.");
+    if (aht21Connected)
+    {
+        publishHADiscovery(mqttClient, "aht21_temp", "AHT21 Temperature", MqttTopics::Aht21Temp, "°C", "temperature", nullptr);
+        publishHADiscovery(mqttClient, "aht21_humidity", "AHT21 Humidity", MqttTopics::Aht21Humidity, "%", "humidity", nullptr);
+    }
 
     selectMultiplexerPort(4);
     ensConnected = ens.begin();
     ens.setOperatingMode(SFE_ENS160_STANDARD);
     Serial.println(ensConnected ? "ENS160 detected." : "ENS160 not detected.");
+    if (ensConnected)
+    {
+        publishHADiscovery(mqttClient, "ens160_state", "ENS160 State", MqttTopics::EnsState, "", nullptr, nullptr);
+        publishHADiscovery(mqttClient, "ens160_voc", "ENS160 TVOC", MqttTopics::EnsVoc, "ppb", nullptr, nullptr);
+        publishHADiscovery(mqttClient, "ens160_co2", "ENS160 eCO2", MqttTopics::EnsCo2, "ppm", "carbon_dioxide", nullptr);
+        publishHADiscovery(mqttClient, "ens160_aqi", "ENS160 AQI", MqttTopics::EnsAirq, "", nullptr, nullptr);
+    }
 }
 
 void readAndPublishAllSensors(PubSubClient &mqttClient)
@@ -123,6 +157,19 @@ void readAndPublishAllSensors(PubSubClient &mqttClient)
         // publishSensorData(mqttClient, "weatherstation/hall/ml", ml);
     }
 
+    // Read and publish AM2315C (DHT20) data
+    if (am2315cConnected)
+    {
+        if (millis() - am2315c.lastRead() > 1000)
+        {
+            am2315c.readData();
+            am2315c.convert();
+            publishSensorData(mqttClient, MqttTopics::am2315cTemp, am2315c.getTemperature());
+            publishSensorData(mqttClient, MqttTopics::am2315cHumidity, am2315c.getHumidity());
+            am2315c.requestData();
+        }
+    }
+
     // Read and publish AS5600 data
     for (int port = 0; port < 4; port++)
     {
@@ -142,16 +189,17 @@ void readAndPublishAllSensors(PubSubClient &mqttClient)
         }
     }
 
+    
     // Read and publish AHT21 data
     selectMultiplexerPort(4);
-    if (ahtConnected)
+    if (aht21Connected)
     {
         sensors_event_t humidity, temp;
         aht.getEvent(&humidity, &temp);
         ens.setTempCompensationCelsius(temp.temperature);
         ens.setRHCompensationFloat(humidity.relative_humidity);
-        publishSensorData(mqttClient, MqttTopics::AhtTemp, temp.temperature);
-        publishSensorData(mqttClient, MqttTopics::AhtHumidity, humidity.relative_humidity);
+        publishSensorData(mqttClient, MqttTopics::Aht21Temp, temp.temperature);
+        publishSensorData(mqttClient, MqttTopics::Aht21Humidity, humidity.relative_humidity);
     }
 
     // Read and publish ENS160 data
@@ -188,7 +236,7 @@ uint8_t readI2CRegister(uint8_t deviceAddress, uint8_t memoryAddress)
     }
     else
     {
-        Serial.println("No data available");
+        Serial.println("No data available from i2c register");
         return 0; // Return 0 if no data is available
     }
 }

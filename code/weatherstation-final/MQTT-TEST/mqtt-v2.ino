@@ -57,7 +57,7 @@ void loop()
     // Read and publish data from all sensors
     readAndPublishAllSensors(mqttClient);
 
-    delay(1000); // Adjust delay for your application
+    delay(800); // Adjust delay for your application
 }
 
 void connectToWiFi()

@@ -16,8 +16,11 @@ namespace MqttTopics
     constexpr const char *HallMm = "weatherstation/hall/mm";
     constexpr const char *As5600Angle = "weatherstation/as5600/port%d/angle";
     constexpr const char *As5600Rpm = "weatherstation/as5600/port%d/rpm";
-    constexpr const char *AhtTemp = "weatherstation/aht21/temp";
-    constexpr const char *AhtHumidity = "weatherstation/aht21/humidity";
+    constexpr const char *Aht21Temp = "weatherstation/aht21/temp";
+    constexpr const char *Aht21Humidity = "weatherstation/aht21/humidity";
+    constexpr const char *am2315cTemp = "weatherstation/am2315c/temp";
+    constexpr const char *am2315cHumidity = "weatherstation/am2315c/humidity";
+
     constexpr const char *EnsState = "weatherstation/ens160/state";
     constexpr const char *EnsVoc = "weatherstation/ens160/voc";
     constexpr const char *EnsCo2 = "weatherstation/ens160/co2";
